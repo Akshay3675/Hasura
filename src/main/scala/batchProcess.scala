@@ -17,12 +17,12 @@ object batchProcess {
     */
 
     // STEP 1 :read file
-    val path = "s3://pfg-datadump/unsaved/test/"
+    val path = "s3://datadump/unsaved/test/"
     val start_time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.parse("2022-07-30 00:00:00".replace(" ","T")))
     val end_time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").format(LocalDateTime.parse("2022-08-01 00:00:00".replace(" ","T")))
+    val df = spark.read.option("delimiter", "|").csv(path)
 
     // STEP 2 : parse json create df
-    val df = spark.read.option("delimiter", "|").csv(path)
     val getJsonContent = udf { input: String => input.substring(input.indexOf("{")) }
     val df1 = df.withColumn("json_content", getJsonContent(col("_c0"))).drop("_c0")
 
@@ -40,7 +40,6 @@ object batchProcess {
     val df4=df3.select($"project_id", $"timestamp", $"operation.*")
 
     // STEP 3 : clean timestamp column and add bill_date column
-
     val df5 = df4.withColumn("x_date",
       concat_ws(" "
         , split(split($"timestamp", "\\+").getItem(0), "T").getItem(0)
@@ -50,6 +49,7 @@ object batchProcess {
         unix_timestamp($"x_date", "yyyy-MM-dd HH:mm:ss.SSSS")
         , "yyyy-MM-dd HH:mm:ss")).withColumn("bill_date",
       to_date($"timestamp")).withColumn("timestamp", to_timestamp($"timestamp"))
+
 
     //Step 4: Group by required columns to calculate bill
     val result = df5.filter($"timestamp" >= start_time
