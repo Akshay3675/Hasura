@@ -3,7 +3,6 @@ import logging
 from pyspark.conf import SparkConf
 from pyspark.sql import SparkSession
 
-
 # def func_call(df):
 #     df.selectExpr("CAST(value AS STRING) as json")
 #     requests = df.rdd.map(lambda x: x.value).collect()
@@ -18,7 +17,7 @@ spark = SparkSession \
             "com.amazonaws.glue.catalog.metastore.AWSGlueDataCatalogHiveClientFactory") \
     .getOrCreate()
 
-# kafka
+#STEP1 subscribe to kafka topic
 subscribe_df = spark \
     .readStream \
     .format("kafka") \
@@ -27,7 +26,11 @@ subscribe_df = spark \
     .option("startingOffsets", "earliest") \
     .load()
 
+#STEP2 create dataframe from log data
+
 ds = subscribe_df.selectExpr("CAST(value AS STRING)")
+
+#STEP3 clean data and apply transformation
 
 apply_transformation_df = ds \
     .writeStream \
@@ -39,6 +42,7 @@ result_df = spark.sql("select * from apply_transformation_query")
 
 result_df.show()
 
+#STEP4 write df to target location
 result_df.write \
     .format('parquet') \
     .mode('append') \
